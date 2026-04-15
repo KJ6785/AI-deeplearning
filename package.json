@@ -14,7 +14,7 @@
     "@hookform/resolvers": "^5.2.2",
     "@polar-sh/nextjs": "^0.9.5",
     "@polar-sh/sdk": "^0.47.0",
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^7.7.0",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@supabase/ssr": "^0.10.2",
@@ -44,7 +44,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
-    "prisma": "^5.22.0",
+    "prisma": "^7.7.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5"
