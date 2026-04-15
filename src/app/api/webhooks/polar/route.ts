@@ -9,7 +9,7 @@ export const POST = Webhooks({
     const order = payload.data
     console.log('💰 [ORDER SUCCESS]:', {
       orderId: order.id,
-      amount: order.amount,
+      amount: order.totalAmount, // amount -> total_amount -> totalAmount 로 수정
       currency: order.currency,
       email: order.customer?.email,
       productName: order.product?.name

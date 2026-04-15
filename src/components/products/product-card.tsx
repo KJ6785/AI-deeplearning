@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import type { Product } from '@polar-sh/sdk/models/components'
+import type { Product } from '@polar-sh/sdk' // <-- 여기가 수정되었습니다!
 
 interface ProductCardProps {
   product: Product
