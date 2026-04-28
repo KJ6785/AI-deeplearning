@@ -244,9 +244,19 @@ def main():
     print(f"   - LaTeX: {sp.latex(analysis['simplified_eq'])}")
     print("="*50)
 
-    # 5. Visualization
-    print("\n--- 5. Visualization Service: Generating Reports ---")
-    save_comparison_plots(galaxies_for_plotting, best_eq_str, output_dir=args.out)
+    # 5. Visualization Service: Generating Reports
+    print(f"\n--- 5. Visualization Service: Generating Reports ---")
+    save_comparison_plots(clean_galaxies, best_eq_str, output_dir=args.out)
+
+    # JSON 결과 저장 (GUI 반영을 위해)
+    import json
+    results_data = {
+        "equation": best_eq_str,
+        "simplified": str(analysis['simplified_eq']),
+        "galaxies": [g['name'] for g in clean_galaxies]
+    }
+    with open(os.path.join(args.out, "results.json"), "w") as f:
+        json.dump(results_data, f)
     print(f"All reports and plots saved to {args.out}/ directory.")
 
 if __name__ == "__main__":

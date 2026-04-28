@@ -102,13 +102,18 @@ class GRAVWindow(QMainWindow):
     def start_analysis(self):
         if not hasattr(self, 'data_path'): return
         self.btn_run.setEnabled(False); self.log_output.clear()
+        
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.current_out_dir = f"results_{timestamp}"
+        
         self.process = QProcess()
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.process.readyReadStandardOutput.connect(self.handle_output)
         self.process.finished.connect(self.analysis_finished)
         cmd = ["python", "-u", "main.py", "--data", self.data_path, "--model_type", self.combo_model.currentText(),
                "--epochs", str(self.spin_epochs.value()), "--pysr_iter", str(self.spin_pysr.value()), 
-               "--chi2_cutoff", str(self.spin_chi2.value()), "--out", "results"]
+               "--chi2_cutoff", str(self.spin_chi2.value()), "--out", self.current_out_dir]
         self.log_output.append(f"> Running: {' '.join(cmd)}\n")
         self.process.start("python", ["-u"] + cmd[2:])
 
@@ -119,7 +124,7 @@ class GRAVWindow(QMainWindow):
 
     def analysis_finished(self):
         self.btn_run.setEnabled(True)
-        json_path = "results/results.json"
+        json_path = os.path.join(self.current_out_dir, "results.json")
         if os.path.exists(json_path):
             with open(json_path, "r") as f: self.current_results = json.load(f)
             self.current_page = 0; self.refresh_display()
@@ -132,22 +137,31 @@ class GRAVWindow(QMainWindow):
 
     def refresh_display(self):
         if not self.current_results: return
+        # 기존 그리드 아이템 제거
         for i in reversed(range(self.grid.count())): 
             w = self.grid.itemAt(i).widget()
             if w: w.setParent(None)
         
-        galaxies = self.current_results['galaxies']
-        start = self.current_page * 12
-        batch = galaxies[start:start+12]
-        self.lbl_info.setText(f"Page {self.current_page+1} | Total Galaxies: {len(galaxies)} | Simplified: {self.current_results['simplified']}")
+        # 실제 존재하는 comparison_page_X.png 찾기
+        existing_images = []
+        for i in range(1, 101):
+            path = os.path.join(self.current_out_dir, f"comparison_page_{i}.png")
+            if os.path.exists(path):
+                existing_images.append(path)
+            else:
+                break
         
-        for i, name in enumerate(batch):
-            img_path = f"results/individuals/{name}.png"
-            if os.path.exists(img_path):
-                pix = QPixmap(img_path)
-                lbl = ClickableLabel(name, pix)
-                lbl.setPixmap(pix.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-                self.grid.addWidget(lbl, i // 3, i % 3)
+        # 현재 페이지의 통 이미지 하나만 가져오기
+        if self.current_page < len(existing_images):
+            img_path = existing_images[self.current_page]
+            self.lbl_info.setText(f"Page {self.current_page+1} / {len(existing_images)}")
+            
+            pix = QPixmap(img_path)
+            lbl = QLabel()
+            # 이미지가 크므로 스케일링하여 표시
+            lbl.setPixmap(pix.scaled(1400, 800, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.grid.addWidget(lbl, 0, 0) # 0,0 위치에 통 이미지 배치
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

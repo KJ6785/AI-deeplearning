@@ -1,0 +1,266 @@
+================================================================================
+          GRAV (Galaxy Rotation Analyze Viewer) Program Info.
+================================================================================
+
+# Program Info
+
+## 개요
+175개 은하 회전 곡선 데이터를 신경망으로 학습한 뒤, 유전 알고리즘 기반 심볼릭 회귀로 수학 공식을 진화시켜 기존 물리 이론보다 정확한 새로운 법칙을 자동 발견하는 AI 시스템
+
+## 시스템 구조
+
+### 1. 데이터 파이프라인
+- **Input**: SPARC 데이터베이스 175개 은하 회전 곡선 (약 3,500 데이터 포인트)
+- **Preprocessing**: Error floor 적용, Outlier 제거, Feature 추출 [v_b, r] → v_obs
+- **Train/Val Split**: 80/20 분할
+
+### 2. Stage 1: Neural Network (PyTorch)
+- **Architecture**: 3-layer Feedforward Network
+  - Input Layer: 2D [v_b, r]
+  - Hidden Layers: [64, 128, 64] neurons
+  - Output Layer: 1D [v_pred]
+  - Activation: ReLU
+- **Training**: Adam optimizer, MSE loss, 100-200 epochs
+- **목적**: 초기 비선형 패턴 학습 및 PySR 초기값 제공
+
+### 3. Stage 2: Symbolic Regression (PySR)
+- **Algorithm**: Genetic Programming
+  - Populations: 30개 병렬 진화 집단
+  - Population Size: 각 50개 개체
+  - Iterations: 500-1000 세대
+- **Operators**:
+  - Binary: +, -, *, /
+  - Unary: sqrt, square, exp, log
+- **Evolution Process**:
+  1. Mutation (70%): 연산자 추가/제거/변경
+  2. Crossover (20%): 두 수식 결합
+  3. Selection: Pareto Front 기반 (정확도 vs 단순성)
+- **목적**: 해석 가능한 수학 법칙 자동 발견
+
+### 4. Stage 3: Physics Validation
+- **비교 모델**:
+  - MOND (Modified Newtonian Dynamics)
+  - Dark Matter (NFW Profile)
+  - Newtonian (Baryons Only)
+- **검증 지표**:
+  - Reduced χ²: Σ[(v_obs - v_pred)² / σ²] / dof
+  - RMSE: Root Mean Square Error
+  - Per-galaxy diagnostics
+- **목적**: 물리적 타당성 검증 및 기존 이론과 성능 비교
+
+### 5. Visualization
+- **Output**: 20 pages × 9 galaxies/page = 180 rotation curve plots
+- **Plot Elements**:
+  - Black: 관측값 (error bars)
+  - Red: AI 발견 법칙
+  - Blue: MOND
+  - Purple: Dark Matter (NFW)
+
+## 핵심 기술
+
+### Multi-Objective Optimization (Pareto Front)
+```
+목표 1: Loss 최소화 (정확도 ↑)
+목표 2: Complexity 최소화 (단순성 ↑)
+목표 3: Physics 일치 (물리적 의미 ↑)
+
+→ Pareto Score = (Δloss) / (Δcomplexity)
+→ 높은 score = 효율적 개선
+```
+
+### Hybrid AI Approach
+```
+Neural Network (Black Box)
+    ↓ 패턴 학습
+Symbolic Regression (White Box)
+    ↓ 수식 진화
+Physics Validation (Domain Knowledge)
+    ↓ 물리 검증
+Interpretable Law (해석 가능한 법칙)
+```
+
+## 사용 라이브러리
+
+### Core ML/AI
+- `torch` (PyTorch 2.x): Neural Network 구현
+- `pysr` (0.18.0): Symbolic Regression 엔진
+- `sympy`: 수식 조작 및 단순화
+- `julia` (1.9.0): PySR 백엔드
+
+### Data Science
+- `numpy`: 수치 계산
+- `pandas`: 데이터 처리
+- `scipy`: 과학 계산 (통계, 최적화)
+
+### Visualization
+- `matplotlib`: 그래프 생성
+- `seaborn`: 통계 시각화 (optional)
+
+### Utilities
+- `pyyaml`: 설정 파일 관리
+- `tqdm`: 진행률 표시
+- `argparse`: CLI 인자 처리
+- `logging`: 로깅
+
+## 실행 방법
+
+### 기본 실행
+```bash
+python main.py --epoch 100 --pysr_iter 500 --chi2_cutoff 50
+```
+
+### 고급 옵션
+```bash
+python main.py \
+  --epoch 200 \
+  --pysr_iter 1000 \
+  --chi2_cutoff 30 \
+  --nn_hidden 128,256,128 \
+  --learning_rate 0.001 \
+  --batch_size 64
+```
+
+## 알고리즘 상세
+
+### PySR Genetic Algorithm Pseudocode
+```python
+Initialize:
+  population = [random_equations()] × 1500
+
+For generation in 1..500:
+  # Mutation
+  for eq in population:
+    if random() < 0.7:
+      eq = mutate(eq)  # 예: v_b → sqrt(v_b)
+  
+  # Crossover
+  for i in range(len(population) // 2):
+    parent1, parent2 = random_pair()
+    child = crossover(parent1, parent2)
+    population.append(child)
+  
+  # Evaluation
+  for eq in population:
+    eq.loss = calculate_loss(eq, data)
+    eq.complexity = count_operations(eq)
+  
+  # Pareto Selection
+  population = pareto_front(population, 
+                           objectives=[loss, complexity])
+  
+  # Hall of Fame
+  best = min(population, key=lambda x: x.loss)
+  hall_of_fame.append(best)
+
+Return: hall_of_fame[-1]
+```
+
+## 혁신 포인트
+
+### 1. Automated Discovery
+- **기존 방법**: 물리학자가 이론 제안 → 수식 유도 → 데이터 fitting (수개월~수년)
+- **AI 방법**: 데이터 입력 → AI 자동 탐색 → 최적 수식 발견 (2-4시간)
+
+### 2. Interpretability
+- Neural Network만 사용 시: Black Box (해석 불가)
+- Symbolic Regression 추가: White Box (수학 공식으로 표현)
+- Physics Validation: 물리적 의미 부여
+
+### 3. Generalization
+- 천문학 외 다른 과학 분야 적용 가능
+- 데이터만 바꾸면 자동으로 법칙 발견
+- 예: 재료과학, 생물학, 경제학 등
+
+---
+
+# References
+
+## 데이터 출처
+
+**[1] Lelli, F., McGaugh, S. S., & Schombert, J. M. (2016)**  
+*SPARC: Mass Models for 175 Disk Galaxies with Spitzer Photometry and Accurate Rotation Curves*  
+The Astronomical Journal, 152(157)  
+DOI: 10.3847/0004-6256/152/6/157  
+- 175개 은하 고품질 회전 곡선 데이터
+- 공개 데이터베이스: http://astroweb.cwru.edu/SPARC
+
+## 알고리즘 출처
+
+**[2] Cranmer, M. (2023)**  
+*Interpretable Machine Learning for Science with PySR and SymbolicRegression.jl*  
+arXiv:2305.01582  
+- PySR 심볼릭 회귀 라이브러리
+- GitHub: https://github.com/MilesCranmer/PySR
+
+**[3] Koza, J. R. (1992)**  
+*Genetic Programming: On the Programming of Computers by Means of Natural Selection*  
+MIT Press  
+- 유전 프로그래밍 이론적 기반
+
+## 비교 이론 출처
+
+**[4] Milgrom, M. (1983)**  
+*A Modification of the Newtonian Dynamics as a Possible Alternative to the Hidden Mass Hypothesis*  
+The Astrophysical Journal, 270, 365-370  
+DOI: 10.1086/161130  
+- MOND (Modified Newtonian Dynamics) 이론
+- 가속도 상수 a₀ = 1.2×10⁻¹⁰ m/s²
+
+**[5] Navarro, J. F., Frenk, C. S., & White, S. D. M. (1997)**  
+*A Universal Density Profile from Hierarchical Clustering*  
+The Astrophysical Journal, 490, 493  
+DOI: 10.1086/304888  
+- NFW 암흑물질 halo 밀도 프로파일
+- ρ(r) = ρ₀ / [(r/rₛ)(1 + r/rₛ)²]
+
+**[6] Begeman, K. G., Broeils, A. H., & Sanders, R. H. (1991)**  
+*Extended Rotation Curves of Spiral Galaxies: Dark Haloes and Modified Dynamics*  
+Monthly Notices of the Royal Astronomical Society, 249, 523  
+- 은하 회전 곡선 fitting 방법론
+
+## 통계 방법론 출처
+
+**[7] Rodrigues, D. C., et al. (2018)**  
+*Absence of a Fundamental Acceleration Scale in Galaxies*  
+Astronomy & Astrophysics, 615, A82  
+DOI: 10.1051/0004-6361/201732489  
+- Outlier 처리 정당화 (34% 은하 3σ 제외)
+
+**[8] Sofue, Y. (2013)**  
+*Rotation Curve and Mass Distribution in the Galactic Center*  
+Publications of the Astronomical Society of Japan, 65, 118  
+DOI: 10.1093/pasj/65.6.118  
+- χ² minimization 표준 절차
+
+**[9] Oman, K. A., et al. (2015)**  
+*The Unexpected Diversity of Dwarf Galaxy Rotation Curves*  
+Monthly Notices of the Royal Astronomical Society, 452, 3650  
+DOI: 10.1093/mnras/stv1504  
+- 은하 다양성 문제 (10-15% 특수 처리 필요)
+
+## 머신러닝 방법론 출처
+
+**[10] Paszke, A., et al. (2019)**  
+*PyTorch: An Imperative Style, High-Performance Deep Learning Library*  
+Advances in Neural Information Processing Systems, 32  
+- PyTorch 프레임워크
+
+**[11] Schmidt, M., & Lipson, H. (2009)**  
+*Distilling Free-Form Natural Laws from Experimental Data*  
+Science, 324(5923), 81-85  
+DOI: 10.1126/science.1165893  
+- 심볼릭 회귀를 통한 물리 법칙 발견 선행 연구
+
+**[12] Udrescu, S. M., & Tegmark, M. (2020)**  
+*AI Feynman: A Physics-Inspired Method for Symbolic Regression*  
+Science Advances, 6(16), eaay2631  
+DOI: 10.1126/sciadv.aay2631  
+- 물리 기반 심볼릭 회귀 방법론
+
+
+χ² = Σ [(관측값 - 예측값)² / 오차²]
+   = Σ [(y_obs - y_pred)² / σ²]
+
+================================================================================
+      Designed for Astrophysical Research - GRAV Engine v2.0
+================================================================================
