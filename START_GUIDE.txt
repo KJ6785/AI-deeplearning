@@ -1,0 +1,6 @@
+# GRAV 프로그램 실행 가이드
+
+# 1. GRAV_START.bat 실행
+# 2. 파라미터 값 넣기
+# 3. Select Data folder클릭후 은하데이터(.dat) 값이 있는 폴더선택
+# 4. Launch Analysis 클릭
