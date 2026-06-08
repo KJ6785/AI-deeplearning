@@ -2,8 +2,8 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 
-const SPRITE_URL = "https://storage.googleapis.com/tfjs-examples/mnist/data/mnist_images.png";
-const LABELS_URL = "https://storage.googleapis.com/tfjs-examples/mnist/data/mnist_labels_uint8";
+const SPRITE_URL = "/api/mnist/images";
+const LABELS_URL = "/api/mnist/labels";
 const IMAGE_SIZE = 784;
 const NUM_CLASSES = 10;
 const NUM_TRAIN = 5500;
