@@ -51,7 +51,7 @@ function LoginForm() {
             required
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
           />
           <input
             type="password"
@@ -59,7 +59,7 @@ function LoginForm() {
             required
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
           />
 
           {error && (

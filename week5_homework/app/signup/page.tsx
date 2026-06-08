@@ -16,31 +16,39 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-    if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "오류가 발생했습니다");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "오류가 발생했습니다");
+        setLoading(false);
+        return;
+      }
+
+      const loginRes = await signIn("credentials", {
+        email: form.email,
+        password: form.password,
+        redirect: false,
+      });
+
+      if (loginRes?.ok) {
+        router.push("/dashboard");
+      } else {
+        router.push("/login");
+      }
+    } catch {
+      setError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
       setLoading(false);
-      return;
-    }
-
-    const loginRes = await signIn("credentials", {
-      email: form.email,
-      password: form.password,
-      redirect: false,
-    });
-
-    if (loginRes?.ok) {
-      router.push("/dashboard");
-    } else {
-      router.push("/login");
     }
   }
+
+  const inputClass =
+    "w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500";
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950 px-4">
@@ -59,7 +67,7 @@ export default function SignupPage() {
             placeholder="이름 (선택)"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+            className={inputClass}
           />
           <input
             type="email"
@@ -67,7 +75,7 @@ export default function SignupPage() {
             required
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+            className={inputClass}
           />
           <input
             type="password"
@@ -76,7 +84,7 @@ export default function SignupPage() {
             minLength={8}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-blue-500"
+            className={inputClass}
           />
 
           {error && (
