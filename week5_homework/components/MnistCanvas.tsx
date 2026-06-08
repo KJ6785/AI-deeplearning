@@ -2,46 +2,29 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 
-const DIGITS = ["0","1","2","3","4","5","6","7","8","9"];
+// Pre-trained MNIST model (TF.js official examples)
+const MODEL_URL =
+  "https://storage.googleapis.com/tfjs-examples/mnist-transfer-cnn/model/model.json";
 
 export default function MnistCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
-  const [prediction, setPrediction] = useState<{ digit: number; confidence: number } | null>(null);
-  const [modelLoaded, setModelLoaded] = useState(false);
+  const [prediction, setPrediction] = useState<{ digit: number; probs: number[] } | null>(null);
+  const [modelStatus, setModelStatus] = useState<"loading" | "ready" | "error">("loading");
   const modelRef = useRef<import("@tensorflow/tfjs").LayersModel | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function loadModel() {
-      const tf = await import("@tensorflow/tfjs");
-      // Build a simple CNN trained on MNIST architecture (weights from CDN)
-      const model = tf.sequential({
-        layers: [
-          tf.layers.conv2d({ inputShape: [28, 28, 1], filters: 32, kernelSize: 3, activation: "relu" }),
-          tf.layers.maxPooling2d({ poolSize: 2 }),
-          tf.layers.conv2d({ filters: 64, kernelSize: 3, activation: "relu" }),
-          tf.layers.maxPooling2d({ poolSize: 2 }),
-          tf.layers.flatten(),
-          tf.layers.dense({ units: 128, activation: "relu" }),
-          tf.layers.dropout({ rate: 0.5 }),
-          tf.layers.dense({ units: 10, activation: "softmax" }),
-        ],
-      });
-
       try {
-        // Try loading pre-trained model from public dir
-        const loaded = await tf.loadLayersModel("/mnist_model/model.json");
-        if (!cancelled) {
-          modelRef.current = loaded;
-          setModelLoaded(true);
-        }
-      } catch {
-        // Fallback: use untrained model (demo purposes — shows architecture)
+        const tf = await import("@tensorflow/tfjs");
+        const model = await tf.loadLayersModel(MODEL_URL);
         if (!cancelled) {
           modelRef.current = model;
-          setModelLoaded(true);
+          setModelStatus("ready");
         }
+      } catch {
+        if (!cancelled) setModelStatus("error");
       }
     }
     loadModel();
@@ -55,8 +38,9 @@ export default function MnistCanvas() {
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, 280, 280);
     ctx.strokeStyle = "#fff";
-    ctx.lineWidth = 20;
+    ctx.lineWidth = 22;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
   }, []);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -76,6 +60,7 @@ export default function MnistCanvas() {
   };
 
   const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
     const { x, y } = getPos(e, canvas);
@@ -85,6 +70,7 @@ export default function MnistCanvas() {
   };
 
   const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
     if (!drawing) return;
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
@@ -99,26 +85,21 @@ export default function MnistCanvas() {
   };
 
   const predict = useCallback(async () => {
-    if (!modelRef.current) return;
+    if (!modelRef.current || modelStatus !== "ready") return;
     const canvas = canvasRef.current!;
     const tf = await import("@tensorflow/tfjs");
 
-    const tensor = tf.tidy(() => {
+    const probsArray = tf.tidy(() => {
       const img = tf.browser.fromPixels(canvas, 1);
       const resized = tf.image.resizeBilinear(img, [28, 28]);
-      const normalized = resized.div(255.0);
-      return normalized.reshape([1, 28, 28, 1]);
+      const normalized = resized.div(255.0).reshape([1, 28, 28, 1]);
+      const output = modelRef.current!.predict(normalized) as import("@tensorflow/tfjs").Tensor;
+      return Array.from(output.dataSync());
     });
 
-    const result = modelRef.current.predict(tensor) as import("@tensorflow/tfjs").Tensor;
-    const probs = await result.data();
-    tensor.dispose();
-    result.dispose();
-
-    const digit = probs.indexOf(Math.max(...Array.from(probs)));
-    const confidence = Math.max(...Array.from(probs));
-    setPrediction({ digit, confidence });
-  }, []);
+    const digit = probsArray.indexOf(Math.max(...probsArray));
+    setPrediction({ digit, probs: probsArray });
+  }, [modelStatus]);
 
   const clear = () => {
     const canvas = canvasRef.current!;
@@ -147,35 +128,47 @@ export default function MnistCanvas() {
         />
         <button
           onClick={clear}
-          className="mt-3 w-full text-sm border border-gray-700 hover:border-gray-500 py-2 rounded-lg transition-colors"
+          className="mt-3 w-full text-sm border border-gray-700 hover:border-gray-500 py-2 rounded-lg transition-colors text-gray-300"
         >
           지우기
         </button>
       </div>
 
       <div className="flex-1">
-        {!modelLoaded ? (
-          <div className="text-gray-400 text-sm">모델 로딩 중...</div>
-        ) : prediction === null ? (
+        {modelStatus === "loading" && (
+          <div className="text-gray-400 text-sm flex items-center gap-2">
+            <span className="animate-spin">⏳</span> 모델 로딩 중...
+          </div>
+        )}
+        {modelStatus === "error" && (
+          <div className="text-red-400 text-sm">모델 로드 실패. 새로고침 해주세요.</div>
+        )}
+        {modelStatus === "ready" && prediction === null && (
           <div className="text-gray-500 text-sm">숫자를 그리면 AI가 인식합니다</div>
-        ) : (
+        )}
+        {modelStatus === "ready" && prediction !== null && (
           <div>
-            <div className="text-6xl font-bold text-blue-400 mb-2">
+            <div className="text-7xl font-bold text-blue-400 mb-1">
               {prediction.digit}
             </div>
             <p className="text-gray-400 text-sm mb-4">
-              신뢰도: {(prediction.confidence * 100).toFixed(1)}%
+              신뢰도: {(Math.max(...prediction.probs) * 100).toFixed(1)}%
             </p>
-            <div className="space-y-1">
-              {DIGITS.map((d, i) => (
-                <div key={d} className="flex items-center gap-2 text-xs">
-                  <span className="w-4 text-gray-500">{d}</span>
-                  <div className="flex-1 bg-gray-800 rounded-full h-1.5">
+            <div className="space-y-1.5">
+              {prediction.probs.map((p, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="w-4 text-gray-400 font-mono">{i}</span>
+                  <div className="flex-1 bg-gray-800 rounded-full h-2">
                     <div
-                      className={`h-1.5 rounded-full transition-all ${i === prediction.digit ? "bg-blue-500" : "bg-gray-600"}`}
-                      style={{ width: `${(Array.isArray(prediction) ? 0 : 0) * 100}%` }}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        i === prediction.digit ? "bg-blue-500" : "bg-gray-600"
+                      }`}
+                      style={{ width: `${Math.max(p * 100, 0.5)}%` }}
                     />
                   </div>
+                  <span className="w-10 text-right text-gray-500">
+                    {(p * 100).toFixed(1)}%
+                  </span>
                 </div>
               ))}
             </div>
